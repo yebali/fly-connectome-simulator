@@ -33,7 +33,17 @@ canvas{display:block}
   text-transform:uppercase;color:var(--amber);margin:0 0 7px;
 }
 
-#masthead{top:14px;left:14px;padding:12px 16px 11px;max-width:min(300px,calc(100vw - 28px))}
+/* 좌상단 HUD — 제목 블록과 파리 카드를 한 흐름에 쌓는다.
+   카드 위치를 top:128px 로 박아두면 제목 블록이 길어질 때(창이 좁아 줄바꿈이
+   늘거나 ?selftest 결과가 붙을 때) 그대로 밑에 깔려 겹친다. */
+#hud{
+  position:fixed;top:14px;left:14px;z-index:5;
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+  max-height:calc(100vh - 28px);overflow-y:auto;overflow-x:hidden;
+  pointer-events:none;                 /* 패널 사이 빈틈으로 책상을 끌 수 있게 */
+}
+#hud #masthead,#hud .flyCard{pointer-events:auto}
+#masthead{position:static;padding:12px 16px 11px;max-width:min(300px,calc(100vw - 28px))}
 #masthead h1{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
 #stats{
   font-family:var(--mono);font-size:11px;color:var(--ink-dim);
@@ -44,7 +54,7 @@ canvas{display:block}
 
 /* ── 파리별 회로 활성 카드 (왼쪽) ───────────────────────── */
 #flyCards{
-  position:fixed;left:14px;top:128px;width:228px;z-index:5;
+  position:static;width:228px;flex:none;
   display:flex;flex-direction:column;gap:8px;
 }
 .flyCard{
@@ -168,7 +178,7 @@ canvas{display:block}
 body.brain-only #flyCards,body.brain-only #controls{display:none}
 
 @media (max-width:900px){
-  #flyCards{width:150px;top:120px}
+  #flyCards{width:150px}
   #flyCards .mrow{grid-template-columns:38px 1fr}
   #controls{bottom:14px;right:14px;width:170px}
   #provenance{display:none}
@@ -181,13 +191,14 @@ body.brain-only #flyCards,body.brain-only #controls{display:none}
 <div id="divider"><span class="grip"><i></i><i></i><i></i><i></i></span></div>
 <div id="boot">회로 조립 중</div>
 
-<section class="panel" id="masthead">
-  <p class="eyebrow">Male CNS Connectome · v1.0</p>
-  <h1>책상 위의 초파리</h1>
-  <p id="stats"></p>
-</section>
-
-<div id="flyCards"></div>
+<div id="hud">
+  <section class="panel" id="masthead">
+    <p class="eyebrow">Male CNS Connectome · v1.0</p>
+    <h1>책상 위의 초파리</h1>
+    <p id="stats"></p>
+  </section>
+  <div id="flyCards"></div>
+</div>
 <div id="flyOverlays"></div>
 
 <section class="panel" id="controls">

@@ -273,7 +273,9 @@ const M = {
   cruise: 320,         // 순항 속도 (mm/s) — 초파리 실측 대역
   yawDamp: 2.6,        // 각속도 감쇠
   wander: 0.8,        // 자발적 진로 변동 (모델: 실제 파리의 자발 사카드 대용)
-  hold: 100,           // 기준 고도 (mm)
+  hold: 190,           // 기준 고도 (mm) — 이전엔 100. 낮게 나는 것의 실제 원인은
+                       // 여기였다: 보이지 않는 천장(BOUND.y)은 원래도 600mm 라 파리가
+                       // 다가갈 일이 거의 없었고, 실제 순항 고도를 정하는 건 이 값이다.
   bob: 70,             // 자발적 오르내림 폭 (모델)
   climbGain: 520,      // 루밍 상하 비대칭 -> 오르내림
   perchAfter: [15, 25],// 이만큼 날면 앉을 자리를 찾기 시작한다 (s)
@@ -291,7 +293,7 @@ const DESK = { w: 2000, d: 1000 };
 // 책상 가장자리의 보이지 않는 벽. 파리가 나갈 수 없는 실제 경계이자,
 // castRay 가 맞히는 면이기도 하다 — 위치를 잘라내는 것과 눈에 보이는 것이
 // 같은 값에서 나와야 파리가 '벽이 어디 있는지' 를 실제 경계와 똑같이 본다.
-const BOUND = { x: DESK.w / 2, z: DESK.d / 2 };
+const BOUND = { x: DESK.w / 2, z: DESK.d / 2, y: 700 };  // y: 보이지 않는 천장
 // 비행 중에는 항상 켜져 있다. 자체 검사의 대조 실험에서만 끈다 — 벽은 시야
 // 양옆을 통째로 덮어서, 장애물 하나가 만드는 좌우 차이를 묻어버리기 때문이다.
 let seesWalls = true;
@@ -349,6 +351,7 @@ function castRay(ox, oy, oz, dx, dy, dz) {
     else if (dx < -1e-9) { const t = (-BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
     if (dz > 1e-9)       { const t = ( BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
     else if (dz < -1e-9) { const t = (-BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
+    if (dy > 1e-9)       { const t = (BOUND.y - oy) / dy; if (t > 0 && t < best) best = t; }
   }
   if (dy < -1e-6) {                                  // 책상 상판 (y = 0 평면)
     const t = -oy / dy;
@@ -805,7 +808,7 @@ function step(F, dt, t) {
   // 틀기 때문에 여기까지 오지 않는다 — 회로를 차단했을 때만 걸린다.
   F.pos.x = Math.max(-BOUND.x, Math.min(BOUND.x, F.pos.x));
   F.pos.z = Math.max(-BOUND.z, Math.min(BOUND.z, F.pos.z));
-  F.pos.y = Math.min(600, F.pos.y);
+  F.pos.y = Math.min(BOUND.y + 40, F.pos.y);   // 안전망 — 평소엔 위 천장 인지가 먼저 막는다
   F.pos.y = Math.max(14, F.pos.y);
   return { steer, escape, front, torque: circuitTorque };
 }
@@ -1962,7 +1965,26 @@ function selftest() {
     `접근 중 루밍 최대 ${wallPeak.toFixed(3)} · 최대 도달 x ${wallMaxX.toFixed(0)} (벽 ${BOUND.x})`]);
   reset(-250, M.hold, 240, 0.6);
 
-  // 6) 착지 — 앉을 자리가 발밑에 있으면 실제로 내려앉는가.
+  // 6) 보이지 않는 천장 — 벽과 같은 방식으로 검사한다. hold/bob 을 밀어붙여
+  //    천장 쪽으로 계속 오르게 하고, 다가갈수록 루밍이 오르는지·실제로 뚫고
+  //    나가지는 않는지를 본다.
+  {
+    const save = { hold: M.hold, bob: M.bob };
+    M.hold = BOUND.y + 200; M.bob = 0;      // 천장 훨씬 위를 목표로 계속 오르게 한다
+    reset(0, BOUND.y - 300, 0, 0);
+    let ceilPeak = 0, ceilMaxY = -Infinity;
+    for (let i = 0; i < 240; i++) {
+      step(F0, 1/60, i / 60);
+      ceilPeak = Math.max(ceilPeak, meanAct(F0, LOOM_HIGH));
+      ceilMaxY = Math.max(ceilMaxY, F0.pos.y);
+    }
+    Object.assign(M, save);
+    out.push(['보이지 않는 천장 인지', ceilPeak > 0.01 && ceilMaxY < BOUND.y - 5,
+      `접근 중 위쪽 루밍 최대 ${ceilPeak.toFixed(3)} · 최대 도달 y ${ceilMaxY.toFixed(0)} (천장 ${BOUND.y})`]);
+    reset(-250, M.hold, 240, 0.6);
+  }
+
+  // 7) 착지 — 앉을 자리가 발밑에 있으면 실제로 내려앉는가.
   //    실시간으로 확인하려면 15~25초를 기다려야 하므로, 타이머만 0 으로 두고
   //    나머지는 그대로 돌린다.
   reset(0, 150, -95, 0.9);          // 키보드(윗면 26mm) 위에서 시작

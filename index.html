@@ -285,6 +285,9 @@ const DESK = { w: 2000, d: 1000 };
 // castRay 가 맞히는 면이기도 하다 — 위치를 잘라내는 것과 눈에 보이는 것이
 // 같은 값에서 나와야 파리가 '벽이 어디 있는지' 를 실제 경계와 똑같이 본다.
 const BOUND = { x: DESK.w / 2, z: DESK.d / 2 };
+// 비행 중에는 항상 켜져 있다. 자체 검사의 대조 실험에서만 끈다 — 벽은 시야
+// 양옆을 통째로 덮어서, 장애물 하나가 만드는 좌우 차이를 묻어버리기 때문이다.
+let seesWalls = true;
 const OBJECTS = [
   { k:'box', name:'모니터 패널',   p:[0,295,-395],    h:[300,175,11], c:0x14171c },
   { k:'box', name:'모니터 목',     p:[0,65,-388],     h:[22,55,20],   c:0x2b3038 },
@@ -334,10 +337,12 @@ function castRay(ox, oy, oz, dx, dy, dz) {
   // 이게 없으면 루밍 회로가 볼 대상이 없어 파리는 벽에 닿아서야 위치가 잘리고,
   // 그대로 벽에 붙어 미끄러진다. 안쪽에서 밖으로 나가는 광선이므로 진행 방향
   // 쪽 면까지의 거리 중 가까운 쪽이 곧 벽까지의 거리다.
-  if (dx > 1e-9)       { const t = ( BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
-  else if (dx < -1e-9) { const t = (-BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
-  if (dz > 1e-9)       { const t = ( BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
-  else if (dz < -1e-9) { const t = (-BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
+  if (seesWalls) {
+    if (dx > 1e-9)       { const t = ( BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
+    else if (dx < -1e-9) { const t = (-BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
+    if (dz > 1e-9)       { const t = ( BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
+    else if (dz < -1e-9) { const t = (-BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
+  }
   if (dy < -1e-6) {                                  // 책상 상판 (y = 0 평면)
     const t = -oy / dy;
     if (t > 0 && t < best) {
@@ -1830,9 +1835,11 @@ function selftest() {
   const pass = (mode, offset) => {
     setScramble(mode);
     lesion.circuit = lesion.loom = lesion.lptc = true;
+    seesWalls = false;            // 재는 것은 '장애물 하나'가 만드는 좌우 차이다
     reset(WALL.p[0] - 380, 110, WALL.p[2] + offset, -Math.PI / 2);
     let sum = 0;
     for (let i = 0; i < 150; i++) { step(F0, 1/60, i / 60); sum += lateral(F0, ESCAPE); }
+    seesWalls = true;
     return sum / 150;
   };
   // 왼쪽에 벽 -> 오른쪽으로 틀어야 하므로 음수, 오른쪽에 벽 -> 양수가 나와야 한다.

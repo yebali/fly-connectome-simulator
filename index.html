@@ -37,12 +37,12 @@ canvas{display:block}
    카드 위치를 top:128px 로 박아두면 제목 블록이 길어질 때(창이 좁아 줄바꿈이
    늘거나 ?selftest 결과가 붙을 때) 그대로 밑에 깔려 겹친다. */
 #hud{
-  position:fixed;top:14px;left:14px;z-index:5;
+  position:fixed;top:14px;bottom:14px;left:14px;z-index:5;
   display:flex;flex-direction:column;align-items:flex-start;gap:8px;
-  max-height:calc(100vh - 28px);overflow-y:auto;overflow-x:hidden;
+  overflow-y:auto;overflow-x:hidden;
   pointer-events:none;                 /* 패널 사이 빈틈으로 책상을 끌 수 있게 */
 }
-#hud #masthead,#hud .flyCard{pointer-events:auto}
+#hud #masthead,#hud .flyCard,#hud #controls{pointer-events:auto}
 #masthead{position:static;padding:12px 16px 11px;max-width:min(300px,calc(100vw - 28px))}
 #masthead h1{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
 #stats{
@@ -108,7 +108,7 @@ canvas{display:block}
 }
 
 /* ── 제어 ─────────────────────────────────────────────── */
-#controls{bottom:14px;right:14px;padding:11px 13px 12px;width:212px}
+#controls{position:static;margin-top:auto;padding:11px 13px 12px;width:212px}
 .ctl{
   display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;
   padding:5px;margin:0 -5px;border:0;background:none;color:inherit;font:inherit;
@@ -180,7 +180,7 @@ body.brain-only #flyCards,body.brain-only #controls{display:none}
 @media (max-width:900px){
   #flyCards{width:150px}
   #flyCards .mrow{grid-template-columns:38px 1fr}
-  #controls{bottom:14px;right:14px;width:170px}
+  #controls{width:170px}
   #provenance{display:none}
   #masthead{max-width:calc(100vw - 28px)}
 }
@@ -198,26 +198,26 @@ body.brain-only #flyCards,body.brain-only #controls{display:none}
     <p id="stats"></p>
   </section>
   <div id="flyCards"></div>
+  <section class="panel" id="controls">
+    <p class="eyebrow">실험</p>
+    <div id="toggles"></div>
+    <hr>
+    <div class="slider">
+      <label class="row" for="exposure">밝기 <b id="exposureVal">1.40</b></label>
+      <input type="range" id="exposure" min="0.5" max="2.6" step="0.05" value="1.4">
+    </div>
+    <button class="ctl" id="drawerToggle" type="button" aria-pressed="true">
+      <span>뉴런 지도</span><span class="sw">펼침</span>
+    </button>
+    <hr>
+    <p class="eyebrow" style="margin-bottom:6px">대조 실험 — 커넥톰 교란</p>
+    <div id="scrambles"></div>
+    <hr>
+    <p class="note" id="lesionNote">회로를 끄면 파리는 직진만 하다 부딪칩니다.</p>
+  </section>
 </div>
 <div id="flyOverlays"></div>
 
-<section class="panel" id="controls">
-  <p class="eyebrow">실험</p>
-  <div id="toggles"></div>
-  <hr>
-  <div class="slider">
-    <label class="row" for="exposure">밝기 <b id="exposureVal">1.40</b></label>
-    <input type="range" id="exposure" min="0.5" max="2.6" step="0.05" value="1.4">
-  </div>
-  <button class="ctl" id="drawerToggle" type="button" aria-pressed="true">
-    <span>뉴런 지도</span><span class="sw">펼침</span>
-  </button>
-  <hr>
-  <p class="eyebrow" style="margin-bottom:6px">대조 실험 — 커넥톰 교란</p>
-  <div id="scrambles"></div>
-  <hr>
-  <p class="note" id="lesionNote">회로를 끄면 파리는 직진만 하다 부딪칩니다.</p>
-</section>
 
 <div id="provenance">
   <div><span class="real">커넥톰에서</span> <b>배선 · 시냅스 가중치 · 수용장 · 흥분/억제 부호 · 좌우 편측성 · 뉴런 형태</b></div>

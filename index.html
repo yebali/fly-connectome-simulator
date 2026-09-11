@@ -1833,7 +1833,7 @@ function selftest() {
   // 3) 대조 실험 — "이 뉴런들이 정말 시각 정보를 받아 파리를 모는가"
   //    행동(충돌 여부)은 둔한 지표다. 허공의 기둥 하나는 어느 쪽으로 돌아도 통과한다.
   //    그래서 신호 자체를 잰다: 장애물을 왼쪽/오른쪽에 두고 회로가 방향을 맞히는지.
-  const WALL = OBJECTS.find(o => o.name === '물병');
+  const WALL = OBJECTS.find(o => o.name === '선반 다리 L');
 
   // 벽을 한쪽에 두고 지나가며, 회피 명령의 편측성 적분값을 잰다.
   // offset < 0 이면 벽이 파리의 오른쪽(+z 가 오른쪽), > 0 이면 왼쪽.
@@ -1841,11 +1841,15 @@ function selftest() {
     setScramble(mode);
     lesion.circuit = lesion.loom = lesion.lptc = true;
     seesWalls = false;            // 재는 것은 '장애물 하나'가 만드는 좌우 차이다
-    reset(WALL.p[0] - 380, 110, WALL.p[2] + offset, -Math.PI / 2);
+    const sv = M.wander; M.wander = 0;   // 자발 사카드는 재려는 신호가 아니다
+    // 책상 한가운데의 빈 통로를 -z 로 직진하며 기둥 옆을 스쳐간다. 경계 토크가
+    // 걸리는 구간(|x|>920, |z|>420)과 벽에서 멀찍이 떨어뜨려, 재는 것이 오직
+    // 기둥 하나의 좌우 위치가 되게 한다.
+    reset(WALL.p[0] + offset, 150, 280, 0);
     let sum = 0;
-    for (let i = 0; i < 150; i++) { step(F0, 1/60, i / 60); sum += lateral(F0, ESCAPE); }
-    seesWalls = true;
-    return sum / 150;
+    for (let i = 0; i < 120; i++) { step(F0, 1/60, i / 60); sum += lateral(F0, ESCAPE); }
+    M.wander = sv; seesWalls = true;
+    return sum / 120;
   };
   // 왼쪽에 벽 -> 오른쪽으로 틀어야 하므로 음수, 오른쪽에 벽 -> 양수가 나와야 한다.
   const probe = mode => {

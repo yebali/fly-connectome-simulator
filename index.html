@@ -281,6 +281,10 @@ const M = {
    ══════════════════════════════════════════════════════════════ */
 // box: 중심 + 반크기 / cyl: 중심(바닥) + 반지름 + 높이
 const DESK = { w: 2000, d: 1000 };
+// 책상 가장자리의 보이지 않는 벽. 파리가 나갈 수 없는 실제 경계이자,
+// castRay 가 맞히는 면이기도 하다 — 위치를 잘라내는 것과 눈에 보이는 것이
+// 같은 값에서 나와야 파리가 '벽이 어디 있는지' 를 실제 경계와 똑같이 본다.
+const BOUND = { x: DESK.w / 2, z: DESK.d / 2 };
 const OBJECTS = [
   { k:'box', name:'모니터 패널',   p:[0,295,-395],    h:[300,175,11], c:0x14171c },
   { k:'box', name:'모니터 목',     p:[0,65,-388],     h:[22,55,20],   c:0x2b3038 },
@@ -326,6 +330,14 @@ const OBJECTS = [
 /* 광선 하나에 대한 최근접 거리. three.js Raycaster 는 512방향 x 매 프레임에 과하다. */
 function castRay(ox, oy, oz, dx, dy, dz) {
   let best = 4000;
+  // 보이지 않는 벽 — 그리지는 않지만 파리 눈에는 잡혀야 한다.
+  // 이게 없으면 루밍 회로가 볼 대상이 없어 파리는 벽에 닿아서야 위치가 잘리고,
+  // 그대로 벽에 붙어 미끄러진다. 안쪽에서 밖으로 나가는 광선이므로 진행 방향
+  // 쪽 면까지의 거리 중 가까운 쪽이 곧 벽까지의 거리다.
+  if (dx > 1e-9)       { const t = ( BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
+  else if (dx < -1e-9) { const t = (-BOUND.x - ox) / dx; if (t > 0 && t < best) best = t; }
+  if (dz > 1e-9)       { const t = ( BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
+  else if (dz < -1e-9) { const t = (-BOUND.z - oz) / dz; if (t > 0 && t < best) best = t; }
   if (dy < -1e-6) {                                  // 책상 상판 (y = 0 평면)
     const t = -oy / dy;
     if (t > 0 && t < best) {
@@ -738,9 +750,10 @@ function step(F, dt, t) {
     F.contact = false;
     F.pos.copy(next);
   }
-  // 책상 범위 밖으로는 나가지 못하게 한다 (충돌로 세지 않음)
-  F.pos.x = Math.max(-DESK.w/2 - 60, Math.min(DESK.w/2 + 60, F.pos.x));
-  F.pos.z = Math.max(-DESK.d/2 - 60, Math.min(DESK.d/2 + 60, F.pos.z));
+  // 벽을 넘지 못하게 하는 최후의 안전망. 평소에는 루밍 회로가 벽을 보고 미리
+  // 틀기 때문에 여기까지 오지 않는다 — 회로를 차단했을 때만 걸린다.
+  F.pos.x = Math.max(-BOUND.x, Math.min(BOUND.x, F.pos.x));
+  F.pos.z = Math.max(-BOUND.z, Math.min(BOUND.z, F.pos.z));
   F.pos.y = Math.min(600, F.pos.y);
   F.pos.y = Math.max(14, F.pos.y);
   return { steer, escape, front, torque: circuitTorque };
@@ -1846,6 +1859,23 @@ function selftest() {
     Object.entries(P).map(([k, r]) =>
       `${k} 좌${r.left.toFixed(3)} 우${r.right.toFixed(3)} 분리${r.sep.toFixed(3)}`
     ).join(' | ') + ` → ${lost.length}/3 붕괴 (${lost.join(',') || '없음'})`]);
+
+  // 5) 보이지 않는 벽 — 파리가 벽을 눈으로 보는가.
+  //    벽을 castRay 에서 빼면 그 앞은 빈 공간이라 루밍이 0 이 되고, 파리는
+  //    벽에 닿아서야 위치가 잘려 그대로 벽에 붙어 미끄러진다. 그래서 두 가지를
+  //    같이 본다: 접근 중 루밍이 오르는가, 그리고 벽에 붙지 않는가.
+  setScramble('none');
+  lesion.circuit = lesion.loom = lesion.lptc = true;
+  reset(BOUND.x - 700, 120, 0, -Math.PI / 2);      // +x 벽을 향해 정면 직진
+  let wallPeak = 0, wallMaxX = -Infinity;
+  for (let i = 0; i < 240; i++) {
+    step(F0, 1/60, i / 60);
+    wallPeak = Math.max(wallPeak, meanAct(F0, LOOM));
+    wallMaxX = Math.max(wallMaxX, F0.pos.x);
+  }
+  out.push(['보이지 않는 벽 인지', wallPeak > 0.015 && wallMaxX < BOUND.x - 20,
+    `접근 중 루밍 최대 ${wallPeak.toFixed(3)} · 최대 도달 x ${wallMaxX.toFixed(0)} (벽 ${BOUND.x})`]);
+  reset(-250, M.hold, 240, 0.6);
 
   // 4) 모니터 시야 — 화면 앞 통로가 비어 있어야 모니터가 보인다.
   //    장애물을 옮기다 통로를 다시 막으면 여기서 실패로 드러난다.

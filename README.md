@@ -35,6 +35,9 @@ top of the script so the boundary stays visible:
 | Optic flow | how retinal motion is computed from geometry |
 | Flight dynamics | thrust, yaw damping, spontaneous saccades |
 | Torque gains | how descending activity becomes turning |
+| Sight range | looming fades to zero past 420mm — real compound eyes resolve poorly at distance |
+| Desk-edge wall & flight ceiling | invisible boundary planes the eyes are made to see, so the escape circuit turns before the hard clamp ever has to |
+| Perching | every 15–25s of flight, a fly settles on whatever object happens to be underneath it for 3–5s, wings folded, before taking off again |
 
 Cell populations: 42 LPTC (HS/VS wide-field motion), 311 looming detectors (185 LPLC2,
 126 LC4), 44 descending neurons (DNa02 steering, DNp01–04/DNp103 escape).
@@ -67,8 +70,8 @@ If flight quality survives all three, the connectome is decoration. It does not.
 
 Each fly's neuron map has its own camera — rotating one does not move the other two.
 
-The panel on the right toggles circuit lesions (steering / looming / posture) and the
-perturbation experiments above. The brightness slider drives tone-mapping exposure.
+The panel at the bottom-left toggles circuit lesions (steering / looming / posture) and
+the perturbation experiments above. The brightness slider drives tone-mapping exposure.
 
 ## Running locally
 
@@ -85,7 +88,7 @@ message, not a fly. Any static server works.
 
 ## Self-test
 
-Append `?selftest` to the URL. Four checks run headlessly and print to the console, the
+Append `?selftest` to the URL. Seven checks run headlessly and print to the console, the
 page title, and the masthead:
 
 1. **Optomotor sign** — turning left must drive the right eye's HS cells and produce a
@@ -95,15 +98,25 @@ page title, and the masthead:
 3. **Perturbation control** — the escape signal must correctly separate "obstacle on the
    left" from "obstacle on the right", and at least 2 of the 3 perturbations must collapse
    that separation.
-4. **Monitor sight line** — no desk object may intrude into the corridor in front of the
+4. **Invisible wall** — the desk-edge boundary is cast as a plane the eyes can see, not
+   just a position clamp: looming must rise on approach, and the fly must never reach it.
+5. **Invisible ceiling** — same check, for the vertical flight ceiling.
+6. **Perch and rest** — forced into "seeking a perch" over a low object, the fly must
+   settle, its speed must hit exactly zero, and what it landed on must be an object top,
+   not the bare desk.
+7. **Monitor sight line** — no desk object may intrude into the corridor in front of the
    screen. (Guards against future layout edits re-occluding the monitor.)
 
 ## Implementation notes
 
-- Single self-contained HTML file. three.js 0.163 is pulled from jsDelivr via an import map;
-  there is no build step and no bundler.
-- The connectome lives in a `<script type="application/json">` block, which is most of the
-  file's 2.9 MB.
+- Four flat files, no build step and no bundler: `index.html` (markup + import map),
+  `styles.css`, `app.js` (the simulation, UI, and self-test), and `data.json` (the
+  connectome). three.js 0.163 itself is pulled from jsDelivr via the import map.
+- `app.js` fetches `data.json` at boot (`await fetch('data.json')`) instead of embedding
+  it inline. The two change at very different rates — the connectome hasn't changed since
+  it was pulled from neuPrint, while the code changes every session — so splitting them
+  lets a returning browser keep the 2.9 MB data file cached across code updates instead of
+  re-downloading it with every deploy.
 - Ray casting against the desk is hand-rolled (slab test for boxes, quadratic for cylinders)
   rather than `THREE.Raycaster` — 512 rays per fly per frame makes the general-purpose path
   too slow.

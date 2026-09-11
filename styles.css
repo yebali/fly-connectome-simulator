@@ -1,0 +1,183 @@
+/* 뉴런을 가산 블렌딩으로 그리므로 다크 단일 테마로 확정.
+   호스트 테마와 무관하게 성립하도록 배경·전경색을 모두 명시한다. */
+:root {
+  --ground:#0a0c11; --surface:#12151d; --surface-2:#171b25;
+  --line:#242a37; --line-soft:#1b202b;
+  --ink:#ccd4e2; --ink-dim:#7d8798; --ink-faint:#565f6e;
+  --amber:#e0b04a;
+  --lptc:#55c7f5;   /* 자세·진로 (HS/VS) */
+  --loom:#dd7de6;   /* 루밍 검출 (LPLC2/LC4) */
+  --dn:#ff6f61;     /* 하행뉴런 */
+  --left:#f2a03d; --right:#7a8bf2;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+canvas{display:block}
+#stage{position:fixed;inset:0}
+
+.panel{
+  position:fixed;background:color-mix(in srgb,var(--surface) 90%,transparent);
+  backdrop-filter:blur(14px);border:1px solid var(--line);z-index:5;
+}
+.eyebrow{
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--amber);margin:0 0 7px;
+}
+
+/* 좌상단 HUD — 제목 블록과 파리 카드를 한 흐름에 쌓는다.
+   카드 위치를 top:128px 로 박아두면 제목 블록이 길어질 때(창이 좁아 줄바꿈이
+   늘거나 ?selftest 결과가 붙을 때) 그대로 밑에 깔려 겹친다. */
+#hud{
+  position:fixed;top:14px;bottom:14px;left:14px;z-index:5;
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+  overflow-y:auto;overflow-x:hidden;
+  pointer-events:none;                 /* 패널 사이 빈틈으로 책상을 끌 수 있게 */
+}
+#hud #masthead,#hud .flyCard,#hud #controls{pointer-events:auto}
+#masthead{position:static;padding:12px 16px 11px;max-width:min(300px,calc(100vw - 28px))}
+#masthead h1{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0}
+#stats{
+  font-family:var(--mono);font-size:11px;color:var(--ink-dim);
+  margin:8px 0 0;font-variant-numeric:tabular-nums;line-height:1.65;
+}
+#stats b{color:var(--ink);font-weight:500}
+#stats .hit{color:var(--dn)}
+
+/* ── 파리별 회로 활성 카드 (왼쪽) ───────────────────────── */
+#flyCards{
+  position:static;width:228px;flex:none;
+  display:flex;flex-direction:column;gap:8px;
+}
+.flyCard{
+  background:color-mix(in srgb,var(--surface) 90%,transparent);
+  backdrop-filter:blur(14px);border:1px solid var(--line);
+  border-left:2px solid var(--fc);padding:9px 11px 10px;
+}
+.flyCard .head{
+  display:flex;align-items:baseline;gap:7px;margin-bottom:7px;
+}
+.flyCard .head b{font-size:12px;font-weight:600;color:var(--fc)}
+.flyCard .head .st{
+  margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+.flyCard .head .st .hit{color:var(--dn)}
+.mrow{display:grid;grid-template-columns:52px 1fr;gap:7px;align-items:center;margin-bottom:4px}
+.mrow:last-child{margin-bottom:0}
+.mrow .lbl{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-faint);
+}
+.meter{height:9px;background:var(--line-soft);position:relative;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;width:0;background:var(--c);transition:width .06s linear}
+.meter span{
+  position:absolute;right:3px;top:-1px;font-family:var(--mono);font-size:8px;
+  color:var(--ink-dim);font-variant-numeric:tabular-nums;
+}
+
+/* ── 오른쪽 뉴런 지도 위 파리별 라벨 + 겹눈 시야 ─────────── */
+#flyOverlays{position:fixed;top:0;bottom:0;z-index:5;pointer-events:none}
+#flyOverlays.hidden{display:none}
+.flyBand{position:absolute;left:0;right:0;padding:10px 12px}
+.flyBand .tag{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--fc);background:color-mix(in srgb,var(--ground) 72%,transparent);
+  border:1px solid var(--line);padding:3px 8px;
+}
+.flyBand .tag .dot{width:6px;height:6px;border-radius:50%;background:var(--fc)}
+.flyBand .eyes{
+  position:absolute;top:10px;right:12px;display:flex;gap:5px;align-items:flex-start;
+}
+.flyBand .eyes canvas{
+  width:52px;height:52px;image-rendering:pixelated;
+  border:1px solid var(--line);display:block;
+}
+.flyBand .eyes .cap{
+  writing-mode:vertical-rl;font-family:var(--mono);font-size:8px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-faint);
+}
+
+/* ── 제어 ─────────────────────────────────────────────── */
+#controls{position:static;margin-top:auto;padding:11px 13px 12px;width:212px}
+.ctl{
+  display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;
+  padding:5px;margin:0 -5px;border:0;background:none;color:inherit;font:inherit;
+  text-align:left;cursor:pointer;width:calc(100% + 10px);font-size:12px;
+}
+.ctl:hover{background:var(--surface-2)}
+.ctl:focus-visible{outline:1px solid var(--amber);outline-offset:-1px}
+.ctl .sw{
+  font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--line);padding:2px 6px;color:var(--ink-faint);
+}
+.ctl[aria-pressed="true"] .sw{border-color:var(--amber);color:var(--amber)}
+.ctl[data-danger][aria-pressed="true"] .sw{border-color:var(--dn);color:var(--dn)}
+#controls hr{border:0;border-top:1px solid var(--line-soft);margin:8px 0}
+.slider{display:grid;gap:5px;padding:4px 0 2px}
+.slider .row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.slider .row b{font-family:var(--mono);font-size:10px;color:var(--amber);font-weight:500;
+  font-variant-numeric:tabular-nums}
+.slider input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;
+  background:var(--line);outline:none;margin:0}
+.slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:12px;height:12px;background:var(--amber);cursor:pointer;border-radius:50%}
+.slider input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--amber);
+  cursor:pointer;border:0;border-radius:50%}
+.slider input[type=range]:focus-visible{outline:1px solid var(--amber);outline-offset:3px}
+#controls .note{font-size:11px;color:var(--ink-faint);margin:8px 0 0;line-height:1.5}
+
+/* ── 출처 / 정직성 ────────────────────────────────────── */
+#provenance{
+  position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+  z-index:4;font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);
+  line-height:1.75;text-align:center;pointer-events:none;max-width:min(520px,calc(100vw - 28px));
+}
+#provenance b{color:var(--ink-dim);font-weight:500}
+#provenance .real{color:var(--lptc)}
+#provenance .model{color:var(--ink-faint)}
+
+/* ── 두 뷰 사이 경계 — 어디를 잡아도 끌린다 ──────────────── */
+#divider{
+  position:fixed;top:0;bottom:0;width:15px;z-index:4;
+  cursor:col-resize;touch-action:none;
+  display:flex;align-items:center;justify-content:center;
+}
+#divider::before{
+  content:"";position:absolute;top:0;bottom:0;left:7px;width:1px;
+  background:var(--line);transition:background .16s ease,box-shadow .16s ease;
+}
+#divider:hover::before,#divider.dragging::before{
+  background:var(--amber);
+  box-shadow:0 0 12px color-mix(in srgb,var(--amber) 50%,transparent);
+}
+#divider .grip{
+  position:relative;display:flex;flex-direction:column;gap:3px;
+  opacity:.22;transition:opacity .16s ease;pointer-events:none;
+}
+#divider:hover .grip,#divider.dragging .grip{opacity:1}
+#divider .grip i{width:11px;height:1px;background:var(--amber);display:block}
+#divider.closed .grip{opacity:.5}
+
+#boot{
+  position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:var(--ground);
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);transition:opacity .5s ease;
+}
+#boot.done{opacity:0;pointer-events:none}
+
+body.brain-only #flyCards,body.brain-only #controls{display:none}
+
+@media (max-width:900px){
+  #flyCards{width:150px}
+  #flyCards .mrow{grid-template-columns:38px 1fr}
+  #controls{width:170px}
+  #provenance{display:none}
+  #masthead{max-width:calc(100vw - 28px)}
+}
+@media (prefers-reduced-motion:reduce){#boot{transition:none}}

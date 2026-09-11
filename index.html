@@ -262,6 +262,10 @@ const M = {
   tau: 0.045,          // 뉴런 시간상수 (s)
   flowGain: 0.9,       // 광학흐름 -> T4/T5 이득
   loomGain: 1.25,      // 루밍 -> LC 이득
+  sight: 420,          // 루밍이 잡히는 최대 거리 (mm). 초파리 겹눈은 해상도가
+                       // 낮아 먼 것을 잘 못 본다 — 이 한계가 없으면 벽처럼 크고
+                       // 평평한 면이 저 멀리서부터 계속 루밍을 만들어, 파리가
+                       // 책상 한가운데서만 맴돈다.
   yawGain: 3.4,        // DNa02 좌우 비대칭 -> 요 토크
   avoidGain: 14.0,     // 루밍 DN 비대칭 -> 회피 토크
   brakeGain: 4.5,      // 정면 하행뉴런 활성 -> 감속
@@ -526,7 +530,8 @@ function sampleEye(F, eye, depth, loom, flow, R, omega) {
 
     // 접근 속도 / 거리 = 1 / (충돌까지 남은 시간)
     const closing = vel.x*dx + vel.y*dy + vel.z*dz;
-    loom[i] = closing > 0 ? Math.min(6, closing / Math.max(Z, 8)) : 0;
+    const near = Math.max(0, 1 - Z / M.sight);          // 멀수록 흐려지다 sight 에서 0
+    loom[i] = closing > 0 ? Math.min(6, closing / Math.max(Z, 8)) * near : 0;
 
     // 운동장: 병진 성분은 거리에 반비례, 회전 성분은 거리와 무관
     const vd = closing / Math.max(Z, 8);
